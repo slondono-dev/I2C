@@ -23,12 +23,12 @@ export type Product = {
   id: string; catalog_id: string; sku: string | null; name: string | null; description: string | null;
   price: string | null; currency: string; stock: number; stock_mode: "tracked" | "unlimited" | "out_of_stock";
   category: string | null; subcategory: string | null; color: string | null; gender: string | null;
-  size: string | null; material: string | null; fit: string | null; status: ProductStatus;
+  size: string | null; material: string | null; fit: string | null; status: ProductStatus; published_at: string | null;
   primary_asset_type: "original" | "clean" | "model" | "lifestyle";
   ai_metadata: Record<string, unknown> | null; display_image: string | null;
   assets: Asset[]; variants: Variant[]; created_at: string; updated_at: string;
 };
-export type ProductUpdate = Partial<Omit<Product, "id" | "assets" | "variants" | "price" | "created_at" | "updated_at" | "display_image" | "ai_metadata" | "catalog_id">> & {
+export type ProductUpdate = Partial<Omit<Product, "id" | "assets" | "variants" | "price" | "published_at" | "created_at" | "updated_at" | "display_image" | "ai_metadata" | "catalog_id">> & {
   price?: number | null; variants?: Variant[];
 };
 export type Job = {
@@ -39,7 +39,7 @@ export type Job = {
 export type PublicProduct = {
   id: string; sku: string | null; name: string; description: string | null; price: string | number | null;
   currency: string; available: boolean; stock: number; category: string | null; color: string | null;
-  sizes: string[]; image: string | null; images: Record<string, string>; whatsapp_url: string | null;
+  sizes: string[]; image: string | null; video: string | null; images: Record<string, string>; whatsapp_url: string | null;
 };
 export type PublicCatalog = {
   name: string; slug: string; description: string | null; theme: ThemeName;
@@ -57,3 +57,15 @@ export type AIUsage = {
   requests: number; cost: number; free_ratio: number; fallbacks: number; errors: number;
   active_providers: number | string[]; by_task: Record<string, unknown>; by_provider: Record<string, unknown>;
 };
+
+export type Features = {
+  ai_recognition: boolean; ai_descriptions: boolean; background_removal: boolean;
+  virtual_model: boolean; video_generation: boolean; ninerouter: boolean;
+};
+export type Health = { status: string; mode: string; features: Features };
+export type AIMetrics = {
+  window_hours: number; photo_to_product_seconds_avg: number | null; product_to_catalog_seconds_avg: number | null;
+  products_processed: number; products_published: number; ai_cost_per_product: number | null;
+  ai_cost_per_user: number | null; free_provider_ratio: number | null; fallback_rate: number | null; ai_error_rate: number | null;
+};
+export type ModelResult = { model?: { success?: boolean; provider?: string; error?: string | null; fidelity_score?: number | null; review_required?: boolean } };

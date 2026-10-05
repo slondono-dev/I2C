@@ -23,7 +23,7 @@ function thumb(p?: Product): string | null {
 }
 
 export default function NewProducts() {
-  const { catalog, loading } = useWorkspace();
+  const { catalog, catalogs, selectCatalog, loading } = useWorkspace();
   const [items, setItems] = useState<Item[]>([]);
   const camRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -91,6 +91,14 @@ export default function NewProducts() {
       <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,image/*" multiple className="hidden" onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} />
       {loading ? <Skeleton className="h-40" /> : (
         <>
+          {catalogs.length > 1 && (
+            <div className="flex gap-2 overflow-x-auto" role="radiogroup" aria-label="Catálogo">
+              {catalogs.map((c) => (
+                <button key={c.id} role="radio" aria-checked={catalog?.id === c.id} onClick={() => selectCatalog(c.id)}
+                  className={cn("shrink-0 rounded-full border px-4 py-2 text-sm font-semibold", catalog?.id === c.id ? "border-accent bg-accent text-white" : "border-stone-300 bg-white")}>{c.name}</button>
+              ))}
+            </div>
+          )}
           <button onClick={() => camRef.current?.click()} disabled={!catalog}
             className="flex h-44 w-full flex-col items-center justify-center gap-3 rounded-3xl bg-accent text-white shadow-xl shadow-indigo-200 transition active:scale-[0.98] disabled:opacity-50">
             <Camera className="h-14 w-14" /><span className="text-lg font-bold">Tomar foto</span>

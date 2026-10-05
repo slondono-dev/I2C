@@ -2,7 +2,7 @@
 import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Sparkles, Eraser, Trash2, Plus, X } from "lucide-react";
+import { ArrowLeft, Sparkles, Eraser, Trash2, Plus, X, UserRound, Clapperboard, Loader2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useProductPolling } from "@/hooks/useProductPolling";
 import { useToast } from "@/components/ui/toast";
@@ -14,10 +14,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs } from "@/components/ui/tabs";
 import { Dialog } from "@/components/ui/dialog";
 import { STATUS_LABEL, errMsg } from "@/lib/format";
-import type { Product, Variant } from "@/lib/types";
+import type { Features, Job, ModelResult, Product, Variant } from "@/lib/types";
 
-type AT = "original" | "clean" | "model" | "lifestyle";
-const LABEL: Record<string, string> = { original: "Original", clean: "Sin fondo", model: "Modelo", lifestyle: "Estilo" };
+type AT = "original" | "clean" | "model" | "lifestyle" | "video";
+const LABEL: Record<string, string> = { original: "Original", clean: "Sin fondo", model: "Modelo", lifestyle: "Estilo", video: "Video" };
+const GEN_FAIL = "No pudimos generar la imagen. Puedes seguir publicando con la foto actual.";
+const isGif = (u: string) => /\.gif(\?|$)/i.test(u);
 const FIELDS: [keyof Product, string][] = [
   ["category", "Categoría"], ["subcategory", "Subcategoría"], ["color", "Color"], ["gender", "Género"],
   ["size", "Talla"], ["material", "Material"], ["fit", "Corte"], ["sku", "SKU"],
@@ -34,6 +36,10 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmDel, setConfirmDel] = useState(false);
   const [err, setErr] = useState("");
+  const [features, setFeatures] = useState<Partial<Features>>({});
+  const [gen, setGen] = useState<"model" | "video" | null>(null);
+  const [genFail, setGenFail] = useState(false);
+  const [review, setReview] = useState<{ required: boolean; score: number | null } | null>(null);
 
   const load = useCallback((prod: Product) => {
     setP(prod);
@@ -43,6 +49,7 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
     setView(prod.primary_asset_type === "clean" && prod.assets.some((a) => a.type === "clean") ? "clean" : "original");
   }, []);
   useEffect(() => { api.product(id).then(load).catch((e) => setErr(errMsg(e))); }, [id, load]);
+  useEffect(() => { api.health().then((h) => h && setFeatures(h.features)); }, []);
   useProductPolling(p ? [p] : [], (n) => { setP(n); setF((o) => ({ ...o, name: o.name || n.name || "", description: o.description || n.description || "" })); });
 
   // keep polling background removal / analysis jobs: refresh product after action
@@ -57,8 +64,27 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
     const n = await api.product(id); load(n);
   }
 
+  async function generate(kind: "model" | "video") {
+    setGen(kind); setGenFail(false);
+    try {
+      let job: Job = kind === "model" ? await api.generateModel(id, {}) : await api.generateVideo(id);
+      for (let i = 0; i < 120 && (job.status === "pending" || job.status === "running"); i++) {
+        await new Promise((r) => setTimeout(r, 2000));
+        job = await api.job(job.id);
+      }
+      const r = (job.result as ModelResult | null)?.model;
+      const vr = (job.result as { video?: { success?: boolean } } | null)?.video;
+      const ok = job.status === "completed" && (kind === "model" ? r?.success !== false : vr?.success !== false);
+      if (!ok) { setGenFail(true); return; }
+      if (kind === "model") setReview({ required: !!r?.review_required, score: r?.fidelity_score ?? null });
+      const n = await api.product(id);
+      setP(n); setVariants(n.variants.map((v) => ({ ...v })));
+      if (n.assets.some((a) => a.type === kind)) setView(kind);
+    } catch { setGenFail(true); } finally { setGen(null); }
+  }
+
   const asset = (t: string) => p?.assets.find((a) => a.type === t)?.url;
-  const available = (["original", "clean", "model", "lifestyle"] as AT[]).filter((t) => asset(t));
+  const available = (["original", "clean", "model", "lifestyle", "video"] as AT[]).filter((t) => asset(t));
   const img = asset(view) ?? p?.display_image ?? null;
 
   function body() {
@@ -102,14 +128,20 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
         <div className="space-y-3">
           <div className="relative aspect-square overflow-hidden rounded-3xl bg-stone-100">
             {p.status === "processing" && <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 text-sm font-semibold text-indigo-700">Analizando producto...</div>}
-            {img ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={img} alt={p.name ?? ""} className="h-full w-full object-contain" /> : <Skeleton className="h-full w-full" />}
+            {gen && <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 bg-white/70 text-sm font-semibold text-indigo-700"><Loader2 className="h-4 w-4 animate-spin" />{gen === "video" ? "Procesando video" : "Procesando imagen"}</div>}
+            {view === "model" && review?.required && asset("model") && <div className="absolute left-3 top-3 z-10"><Badge tone="amber">Revisar fidelidad</Badge></div>}
+            {view === "video" && asset("video") ? (isGif(asset("video")!)
+              /* eslint-disable-next-line @next/next/no-img-element */
+              ? <img src={asset("video")} alt={p.name ?? ""} className="h-full w-full object-contain" />
+              : <video src={asset("video")} controls autoPlay muted loop playsInline className="h-full w-full object-contain" />)
+              : img ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={img} alt={p.name ?? ""} className="h-full w-full object-contain" /> : <Skeleton className="h-full w-full" />}
           </div>
           {available.length > 0 && (
             <div className="space-y-2">
               <Tabs value={view} onChange={setView} items={available.map((t) => ({ value: t, label: LABEL[t] }))} />
               <div className="flex items-center gap-2 text-sm">
                 <span className="text-stone-500">Foto en el catálogo:</span>
-                {p.primary_asset_type === view ? <Badge tone="green">Esta foto</Badge> : <Button size="sm" variant="outline" onClick={() => patch({ primary_asset_type: view }, "Foto del catálogo actualizada")}>Usar esta</Button>}
+                {view === "video" ? null : p.primary_asset_type === view ? <Badge tone="green">Esta foto</Badge> : <Button size="sm" variant="outline" onClick={() => patch({ primary_asset_type: view }, "Foto del catálogo actualizada")}>Usar esta</Button>}
               </div>
             </div>
           )}
@@ -117,6 +149,13 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
             <Button variant="secondary" disabled={!!busy} onClick={() => action("analyze")}><Sparkles className="h-4 w-4" />{busy === "analyze" ? "Analizando..." : "Re-analizar"}</Button>
             <Button variant="secondary" disabled={!!busy} onClick={() => action("bg")}><Eraser className="h-4 w-4" />{busy === "bg" ? "Procesando..." : "Quitar fondo"}</Button>
           </div>
+          {(features.virtual_model || features.video_generation) && (
+            <div className="grid grid-cols-2 gap-2">
+              {features.virtual_model && <Button variant="secondary" disabled={!!busy || !!gen} onClick={() => generate("model")}><UserRound className="h-4 w-4" />{gen === "model" ? "Procesando imagen" : "Generar foto con modelo"}</Button>}
+              {features.video_generation && <Button variant="secondary" disabled={!!busy || !!gen} onClick={() => generate("video")}><Clapperboard className="h-4 w-4" />{gen === "video" ? "Procesando video" : "Generar video"}</Button>}
+            </div>
+          )}
+          {genFail && <p role="alert" className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">{GEN_FAIL}</p>}
         </div>
 
         <div className="space-y-4">

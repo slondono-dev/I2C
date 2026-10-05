@@ -46,6 +46,7 @@ export default function Dashboard() {
       <Link href="/products/new" className={cn(buttonVariants({ size: "xl" }), "w-full gap-3 text-base shadow-lg shadow-indigo-200")}>
         <Camera className="h-6 w-6" /> + AGREGAR PRODUCTOS
       </Link>
+      <Link href="/settings/brand" className="block text-center text-sm font-medium text-accent underline">Ajustes de marca</Link>
       <div className="grid grid-cols-3 gap-3">
         {stats.map((s) => (
           <Card key={s.label} className="p-3 text-center">

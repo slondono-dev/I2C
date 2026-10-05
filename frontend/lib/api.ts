@@ -58,7 +58,15 @@ export const api = {
   createBrand: (b: Partial<T.Brand> & { name: string }) => req<T.Brand>("/brands", json("POST", b)),
   updateBrand: (id: string, b: Partial<T.Brand>) => req<T.Brand>(`/brands/${id}`, json("PATCH", b)),
 
+  uploadLogo: (id: string, file: File) => {
+    const fd = new FormData(); fd.append("file", file);
+    return req<T.Brand>(`/brands/${id}/logo`, { method: "POST", body: fd });
+  },
+
   catalogs: (brand_id?: string) => req<T.Catalog[]>(`/catalogs${qs({ brand_id })}`),
+  createCatalog: (b: { brand_id: string; name: string; theme: T.ThemeName; slug?: string; description?: string }) =>
+    req<T.Catalog>("/catalogs", json("POST", b)),
+  deleteCatalog: (id: string) => req<void>(`/catalogs/${id}`, json("DELETE")),
   updateCatalog: (id: string, b: Partial<T.Catalog>) => req<T.Catalog>(`/catalogs/${id}`, json("PATCH", b)),
   publishCatalog: (id: string) => req<T.Catalog>(`/catalogs/${id}/publish`, json("POST")),
   catalogQr: async (id: string): Promise<string> => {
@@ -82,6 +90,13 @@ export const api = {
   },
   analyze: (id: string, overwrite = false) => req<T.Job>(`/products/${id}/analyze?overwrite=${overwrite}`, json("POST")),
   removeBackground: (id: string) => req<T.Job>(`/products/${id}/remove-background`, json("POST")),
+  generateModel: (id: string, b: { style?: string; model?: { gender?: string; age_range?: string } } = {}) =>
+    req<T.Job>(`/products/${id}/generate-model`, json("POST", b)),
+  generateVideo: (id: string) => req<T.Job>(`/products/${id}/generate-video`, json("POST")),
+  job: (id: string) => req<T.Job>(`/jobs/${id}`),
+  health: async (): Promise<T.Health | null> => {
+    try { const r = await fetch(`${API_URL}/health`); return r.ok ? ((await r.json()) as T.Health) : null; } catch { return null; }
+  },
   bulkPublish: (product_ids: string[]) =>
     req<{ published: string[]; errors: { id: string; error: string }[] }>("/products/bulk/publish", json("POST", { product_ids })),
   bulkUpdate: (items: { id: string; name?: string; price?: number; stock?: number; sku?: string }[]) =>
@@ -96,7 +111,9 @@ export const api = {
     req<T.AIProvider[]>(`/admin/ai/providers/${name}`, json("PATCH", b)),
   aiRouting: () => req<T.AIRouting[]>("/admin/ai/routing"),
   aiUsage: (hours = 24) => req<T.AIUsage>(`/admin/ai/usage?hours=${hours}`),
-  aiFeatures: () => req<Record<string, boolean>>("/admin/ai/features"),
+  aiFeatures: () => req<T.Features>("/admin/ai/features"),
+  aiMetrics: (hours = 168) => req<T.AIMetrics>(`/admin/ai/metrics?hours=${hours}`),
+  aiHealthCheck: () => req<Record<string, boolean>>("/admin/ai/health-check", json("POST")),
 };
 
 /** Server/client-safe public catalog fetch (used by /c/[slug]). */

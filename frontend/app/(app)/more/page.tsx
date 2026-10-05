@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BookOpen, Sparkles, LogOut, Eye, Settings2 } from "lucide-react";
+import { BookOpen, Sparkles, LogOut, Eye, Settings2, Palette } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { getUser, clearSession } from "@/lib/auth";
 
@@ -10,7 +10,8 @@ export default function More() {
   const user = getUser();
   const rows = [
     { href: "/catalogs", label: "Mis catálogos", icon: BookOpen },
-    { href: "/products/review", label: "Revisar productos", icon: Settings2 },
+    { href: "/settings/brand", label: "Ajustes de marca", icon: Palette },
+    { href: "/products/review", label: "Revisar productos", icon: Settings2, Palette },
     { href: "/demo", label: "Ver catálogo de ejemplo", icon: Eye },
     ...(user?.is_admin ? [{ href: "/admin/ai", label: "Panel de IA", icon: Sparkles }] : []),
   ];

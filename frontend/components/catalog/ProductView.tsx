@@ -19,12 +19,16 @@ export function productImages(p: PublicProduct): { key: string; url: string }[] 
   return out;
 }
 
+const isGif = (u: string) => /\.gif(\?|$)/i.test(u);
+
 export function ProductView({ product, theme, shareUrl }: { product: PublicProduct; theme: ThemeName; shareUrl: string }) {
   const t = THEMES[theme];
   const imgs = useMemo(() => productImages(product), [product]);
   const [idx, setIdx] = useState(0);
   const [copied, setCopied] = useState(false);
   const cur = imgs[idx];
+  const video = product.video;
+  const [showVideo, setShowVideo] = useState(!!video);
 
   async function share() {
     const url = shareUrl.startsWith("http") ? shareUrl : window.location.origin + shareUrl;
@@ -38,18 +42,25 @@ export function ProductView({ product, theme, shareUrl }: { product: PublicProdu
     <div className="mx-auto grid max-w-4xl gap-6 md:grid-cols-2">
       <div>
         <div className={`relative overflow-hidden ${t.aspect} ${t.imgClass}`} style={{ background: t.cardBg }}>
+          {showVideo && video ? (isGif(video)
+            /* eslint-disable-next-line @next/next/no-img-element */
+            ? <img src={video} alt={product.name} className="absolute inset-0 h-full w-full object-cover" />
+            : <video src={video} autoPlay muted loop playsInline className="absolute inset-0 h-full w-full object-cover" />) : (
           <AnimatePresence mode="wait">
             {cur && (
               <motion.img key={cur.url} src={cur.url} alt={product.name} className="absolute inset-0 h-full w-full object-cover"
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }} />
             )}
-          </AnimatePresence>
+          </AnimatePresence>)}
         </div>
-        {imgs.length > 1 && (
+        {(imgs.length > 1 || (video && imgs.length > 0)) && (
           <div className="mt-3 flex gap-2">
+            {video && (
+              <button onClick={() => setShowVideo(true)} aria-label="Video" className="flex h-16 w-14 items-center justify-center rounded-md border-2 bg-black/5 text-xs font-bold" style={{ borderColor: showVideo ? "var(--accent)" : "transparent" }}>▶</button>
+            )}
             {imgs.map((im, i) => (
-              <button key={im.url} onClick={() => setIdx(i)} aria-label={LABEL[im.key] || "Foto"}
-                className="h-16 w-14 overflow-hidden rounded-md border-2" style={{ borderColor: i === idx ? "var(--accent)" : "transparent" }}>
+              <button key={im.url} onClick={() => { setIdx(i); setShowVideo(false); }} aria-label={LABEL[im.key] || "Foto"}
+                className="h-16 w-14 overflow-hidden rounded-md border-2" style={{ borderColor: !showVideo && i === idx ? "var(--accent)" : "transparent" }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={im.url} alt="" loading="lazy" className="h-full w-full object-cover" />
               </button>

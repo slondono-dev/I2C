@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { errMsg } from "@/lib/format";
-import type { AIProvider, AIRouting, AIUsage } from "@/lib/types";
+import { Button } from "@/components/ui/button";
+import type { AIMetrics, AIProvider, AIRouting, AIUsage } from "@/lib/types";
 
 const TONE: Record<string, "green" | "amber" | "red" | "neutral"> = { healthy: "green", degraded: "amber", down: "red", quota_exceeded: "amber", disabled: "neutral" };
 const LABEL: Record<string, string> = { healthy: "Activo", degraded: "Degradado", down: "Caído", quota_exceeded: "Cuota agotada", disabled: "Desactivado" };
@@ -18,18 +19,27 @@ export default function AdminAI() {
   const [routing, setRouting] = useState<AIRouting[]>([]);
   const [usage, setUsage] = useState<AIUsage | null>(null);
   const [features, setFeatures] = useState<Record<string, boolean>>({});
+  const [metrics, setMetrics] = useState<AIMetrics | null>(null);
+  const [checking, setChecking] = useState(false);
   const [forbidden, setForbidden] = useState(false);
 
   const load = useCallback(async () => {
     try {
       const [p, r, u, f] = await Promise.all([api.aiProviders(), api.aiRouting(), api.aiUsage(24), api.aiFeatures()]);
-      setProviders(p); setRouting(r); setUsage(u); setFeatures(f);
+      setProviders(p); setRouting(r); setUsage(u); setFeatures({ ...f });
+      api.aiMetrics(168).then(setMetrics).catch(() => setMetrics(null));
     } catch (e) { if (e instanceof ApiError && e.status === 403) setForbidden(true); else { toast(errMsg(e), "error"); setProviders([]); } }
   }, [toast]);
   useEffect(() => { load(); }, [load]);
 
   async function patch(name: string, b: { enabled?: boolean; priority?: number }) {
     try { setProviders(await api.patchProvider(name, b)); setRouting(await api.aiRouting()); } catch (e) { toast(errMsg(e), "error"); }
+  }
+
+  async function healthCheck() {
+    setChecking(true);
+    try { await api.aiHealthCheck(); setProviders(await api.aiProviders()); toast("Salud revisada"); }
+    catch (e) { toast(errMsg(e), "error"); } finally { setChecking(false); }
   }
 
   if (forbidden) return <Card className="mx-auto max-w-md py-10 text-center font-semibold">Solo administradores</Card>;
@@ -50,7 +60,28 @@ export default function AdminAI() {
       </section>
 
       <section>
-        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-stone-500">Providers</h2>
+        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-stone-500">Métricas (últimos 7 días)</h2>
+        {!metrics ? <Skeleton className="h-24" /> : (() => {
+          const sec = (v: number | null) => (v == null ? "—" : v >= 60 ? `${(v / 60).toFixed(1)} min` : `${v.toFixed(1)} s`);
+          const pct = (v: number | null) => (v == null ? "—" : `${Math.round(v * 100)}%`);
+          const usd = (v: number | null) => (v == null ? "—" : `$${v.toFixed(3)}`);
+          const rows: [string, string | number][] = [
+            ["Foto → producto", sec(metrics.photo_to_product_seconds_avg)], ["Producto → catálogo", sec(metrics.product_to_catalog_seconds_avg)],
+            ["Costo por producto", usd(metrics.ai_cost_per_product)], ["% gratuitas", pct(metrics.free_provider_ratio)],
+            ["Fallbacks", pct(metrics.fallback_rate)], ["Errores", pct(metrics.ai_error_rate)],
+            ["Procesados", metrics.products_processed], ["Publicados", metrics.products_published],
+          ];
+          return <div className="grid grid-cols-2 gap-3 md:grid-cols-4">{rows.map(([l, v]) => (
+            <Card key={l} className="p-3 text-center"><div className="text-2xl font-black">{v}</div><div className="text-xs text-stone-500">{l}</div></Card>
+          ))}</div>;
+        })()}
+      </section>
+
+      <section>
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-stone-500">Providers</h2>
+          <Button size="sm" variant="outline" disabled={checking} onClick={healthCheck}>{checking ? "Revisando..." : "Revisar salud ahora"}</Button>
+        </div>
         <div className="grid gap-3 md:grid-cols-2">
           {providers === null && [0, 1].map((i) => <Skeleton key={i} className="h-36" />)}
           {providers?.map((p) => (
