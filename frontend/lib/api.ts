@@ -90,7 +90,11 @@ export const api = {
   },
   analyze: (id: string, overwrite = false) => req<T.Job>(`/products/${id}/analyze?overwrite=${overwrite}`, json("POST")),
   removeBackground: (id: string) => req<T.Job>(`/products/${id}/remove-background`, json("POST")),
-  generateModel: (id: string, b: { style?: string; model?: { gender?: string; age_range?: string } } = {}) =>
+  brandModels: (brand_id: string) => req<T.BrandModel[]>(`/brands/${brand_id}/models`),
+  createBrandModel: (brand_id: string, b: { name: string; gender?: string; age_range?: string; style?: string; reference_images?: string[]; prompt_template?: string }) =>
+    req<T.BrandModel>(`/brands/${brand_id}/models`, json("POST", b)),
+  deleteBrandModel: (brand_id: string, model_id: string) => req<void>(`/brands/${brand_id}/models/${model_id}`, json("DELETE")),
+  generateModel: (id: string, b: { brand_model_id?: string; style?: string; model?: { gender?: string; age_range?: string } } = {}) =>
     req<T.Job>(`/products/${id}/generate-model`, json("POST", b)),
   generateVideo: (id: string) => req<T.Job>(`/products/${id}/generate-video`, json("POST")),
   job: (id: string) => req<T.Job>(`/jobs/${id}`),
@@ -113,6 +117,8 @@ export const api = {
   aiUsage: (hours = 24) => req<T.AIUsage>(`/admin/ai/usage?hours=${hours}`),
   aiFeatures: () => req<T.Features>("/admin/ai/features"),
   aiMetrics: (hours = 168) => req<T.AIMetrics>(`/admin/ai/metrics?hours=${hours}`),
+  aiExperiment: (b: { task: T.ExperimentTask; providers: string[]; payload?: Record<string, unknown>; product_id?: string }) =>
+    req<{ task: string; results: T.ExperimentResult[] }>("/admin/ai/experiments", json("POST", b)),
   aiHealthCheck: () => req<Record<string, boolean>>("/admin/ai/health-check", json("POST")),
 };
 

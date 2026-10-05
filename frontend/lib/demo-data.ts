@@ -29,7 +29,7 @@ export const demoProducts: PublicProduct[] = seeds.map((s, i) => {
   return {
     id: `demo-${i + 1}`, sku: `DEMO-${i + 1}`, name: s[0], description: s[1], price: s[2], currency: "COP",
     available: i !== 6, stock: i === 6 ? 0 : 10, category: s[3], color: s[4], sizes: s[5],
-    image: main, video: null, images: { clean: alt }, whatsapp_url: "https://wa.me/573001234567?text=Hola%2C%20me%20interesa%20" + encodeURIComponent(s[0]),
+    image: main, image_small: null, video: null, images: { clean: alt }, whatsapp_url: "https://wa.me/573001234567?text=Hola%2C%20me%20interesa%20" + encodeURIComponent(s[0]),
   };
 });
 

@@ -8,10 +8,77 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { errMsg } from "@/lib/format";
 import { Button } from "@/components/ui/button";
-import type { AIMetrics, AIProvider, AIRouting, AIUsage } from "@/lib/types";
+import type { ExperimentResult, ExperimentTask, AIMetrics, AIProvider, AIRouting, AIUsage } from "@/lib/types";
 
 const TONE: Record<string, "green" | "amber" | "red" | "neutral"> = { healthy: "green", degraded: "amber", down: "red", quota_exceeded: "amber", disabled: "neutral" };
 const LABEL: Record<string, string> = { healthy: "Activo", degraded: "Degradado", down: "Caído", quota_exceeded: "Cuota agotada", disabled: "Desactivado" };
+
+const TASKS: [ExperimentTask, string][] = [["product_name", "Nombre de producto"], ["product_description", "Descripción"], ["product_recognition", "Reconocimiento"], ["background_removal", "Quitar fondo"], ["virtual_model", "Modelo virtual"]];
+
+function Experiments({ providers }: { providers: AIProvider[] }) {
+  const toast = useToast();
+  const [task, setTask] = useState<ExperimentTask>("product_name");
+  const [sel, setSel] = useState<string[]>([]);
+  const [productId, setProductId] = useState("");
+  const [category, setCategory] = useState("");
+  const [color, setColor] = useState("");
+  const [running, setRunning] = useState(false);
+  const [results, setResults] = useState<ExperimentResult[] | null>(null);
+  const textTask = task === "product_name" || task === "product_description";
+
+  const toggle = (n: string) => setSel((s) => (s.includes(n) ? s.filter((x) => x !== n) : s.length >= 6 ? s : [...s, n]));
+  async function run() {
+    if (sel.length === 0) { toast("Elige al menos un provider", "error"); return; }
+    setRunning(true); setResults(null);
+    try {
+      const r = await api.aiExperiment({
+        task, providers: sel, product_id: productId.trim() || undefined,
+        payload: textTask ? { attributes: { category: category.trim(), color: color.trim() } } : undefined,
+      });
+      setResults(r.results);
+    } catch (e) { toast(errMsg(e), "error"); } finally { setRunning(false); }
+  }
+  const out = (d: unknown) => (d == null ? "—" : typeof d === "string" ? d : JSON.stringify(d, null, 1));
+
+  return (
+    <section>
+      <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-stone-500">Experimentos</h2>
+      <Card className="space-y-3">
+        <div><label className="mb-1 block text-sm font-medium">Tarea</label>
+          <select value={task} onChange={(e) => setTask(e.target.value as ExperimentTask)} className="h-11 w-full rounded-xl border border-stone-300 bg-white px-3 text-sm">
+            {TASKS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
+        <div className="flex flex-wrap gap-x-4 gap-y-2">
+          {providers.map((p) => (
+            <label key={p.name} className="flex items-center gap-2 text-sm"><input type="checkbox" className="h-5 w-5 accent-indigo-600" checked={sel.includes(p.name)} onChange={() => toggle(p.name)} />{p.display_name}</label>
+          ))}
+        </div>
+        <Input placeholder="ID de producto (para tareas con imagen)" value={productId} onChange={(e) => setProductId(e.target.value)} className="h-11" />
+        {textTask && <div className="grid grid-cols-2 gap-2">
+          <Input placeholder="Categoría" value={category} onChange={(e) => setCategory(e.target.value)} className="h-11" />
+          <Input placeholder="Color" value={color} onChange={(e) => setColor(e.target.value)} className="h-11" /></div>}
+        <Button className="w-full" disabled={running} onClick={run}>{running ? "Comparando..." : "Comparar"}</Button>
+      </Card>
+      {results && (
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
+          {results.map((r, i) => (
+            <Card key={`${r.provider}-${i}`} className="space-y-2 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="font-bold">{r.provider}{r.model ? <span className="ml-1 text-xs font-normal text-stone-500">{r.model}</span> : null}</div>
+                <Badge tone={r.success ? "green" : "red"}>{r.success ? "✓ Éxito" : "✗ Falló"}</Badge>
+              </div>
+              <div className="flex gap-4 text-xs text-stone-500">
+                <span>{r.latency_ms != null ? `${Math.round(r.latency_ms)} ms` : "—"}</span>
+                <span>{r.cost != null ? `$${Number(r.cost).toFixed(4)}` : "—"}</span>
+              </div>
+              {r.error && <p className="text-xs text-red-700">{r.error}</p>}
+              <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-xl bg-stone-50 p-2 text-xs">{out(r.data)}</pre>
+            </Card>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
 
 export default function AdminAI() {
   const toast = useToast();
@@ -113,6 +180,8 @@ export default function AdminAI() {
             <tbody>{routing.map((r) => (<tr key={r.task} className="border-t border-stone-100"><td className="p-3 font-medium">{r.task}</td><td>{r.providers.join(" → ")}</td><td>{r.active ? <Badge tone="green">{r.active}</Badge> : "—"}</td></tr>))}</tbody></table>
         </Card>
       </section>
+
+      {providers && providers.length > 0 && <Experiments providers={providers} />}
 
       <section>
         <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-stone-500">Funciones</h2>

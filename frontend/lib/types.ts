@@ -39,12 +39,21 @@ export type Job = {
 export type PublicProduct = {
   id: string; sku: string | null; name: string; description: string | null; price: string | number | null;
   currency: string; available: boolean; stock: number; category: string | null; color: string | null;
-  sizes: string[]; image: string | null; video: string | null; images: Record<string, string>; whatsapp_url: string | null;
+  sizes: string[]; image: string | null; image_small: string | null; video: string | null; images: Record<string, string>; whatsapp_url: string | null;
 };
 export type PublicCatalog = {
   name: string; slug: string; description: string | null; theme: ThemeName;
   brand: { name: string; slug: string; logo: string | null; whatsapp: string | null; primary_color: string | null; secondary_color: string | null; font: string | null };
   products: PublicProduct[]; public_url: string; qr_url: string;
+};
+export type BrandModel = {
+  id: string; brand_id: string; name: string; gender: string | null; age_range: string | null; style: string | null;
+  reference_images: string[] | null; prompt_template: string | null; created_at: string;
+};
+export type ExperimentTask = "product_name" | "product_description" | "product_recognition" | "background_removal" | "virtual_model";
+export type ExperimentResult = {
+  success: boolean; provider: string; model: string | null; cost: number | null; latency_ms: number | null;
+  error: string | null; data: unknown; fallbacks: unknown;
 };
 export type AIProvider = {
   name: string; display_name: string; capabilities: string[];

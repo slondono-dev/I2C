@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Sparkles, Eraser, Trash2, Plus, X, UserRound, Clapperboard, Loader2 } from "lucide-react";
 import { api } from "@/lib/api";
+import { useWorkspace } from "@/hooks/useWorkspace";
 import { useProductPolling } from "@/hooks/useProductPolling";
 import { useToast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
@@ -14,7 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs } from "@/components/ui/tabs";
 import { Dialog } from "@/components/ui/dialog";
 import { STATUS_LABEL, errMsg } from "@/lib/format";
-import type { Features, Job, ModelResult, Product, Variant } from "@/lib/types";
+import type { BrandModel, Features, Job, ModelResult, Product, Variant } from "@/lib/types";
 
 type AT = "original" | "clean" | "model" | "lifestyle" | "video";
 const LABEL: Record<string, string> = { original: "Original", clean: "Sin fondo", model: "Modelo", lifestyle: "Estilo", video: "Video" };
@@ -39,6 +40,9 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
   const [features, setFeatures] = useState<Partial<Features>>({});
   const [gen, setGen] = useState<"model" | "video" | null>(null);
   const [genFail, setGenFail] = useState(false);
+  const { catalogs } = useWorkspace();
+  const [brandModels, setBrandModels] = useState<BrandModel[]>([]);
+  const [brandModelId, setBrandModelId] = useState("");
   const [review, setReview] = useState<{ required: boolean; score: number | null } | null>(null);
 
   const load = useCallback((prod: Product) => {
@@ -53,6 +57,12 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
   useEffect(() => { api.product(id).then(load).catch((e) => setErr(errMsg(e))); }, [id, load]);
   useEffect(() => { api.health().then((h) => h && setFeatures(h.features)); }, []);
   useProductPolling(p ? [p] : [], (n) => { setP(n); setF((o) => ({ ...o, name: o.name || n.name || "", description: o.description || n.description || "" })); });
+
+  const brandId = catalogs.find((c) => c.id === p?.catalog_id)?.brand_id;
+  useEffect(() => {
+    if (!brandId) return;
+    api.brandModels(brandId).then(setBrandModels).catch(() => setBrandModels([]));
+  }, [brandId]);
 
   // keep polling background removal / analysis jobs: refresh product after action
   async function refreshSoon() {
@@ -69,7 +79,7 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
   async function generate(kind: "model" | "video") {
     setGen(kind); setGenFail(false);
     try {
-      let job: Job = kind === "model" ? await api.generateModel(id, {}) : await api.generateVideo(id);
+      let job: Job = kind === "model" ? await api.generateModel(id, brandModelId ? { brand_model_id: brandModelId } : {}) : await api.generateVideo(id);
       for (let i = 0; i < 120 && (job.status === "pending" || job.status === "running"); i++) {
         await new Promise((r) => setTimeout(r, 2000));
         job = await api.job(job.id);
@@ -151,6 +161,15 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
             <Button variant="secondary" disabled={!!busy} onClick={() => action("analyze")}><Sparkles className="h-4 w-4" />{busy === "analyze" ? "Analizando..." : "Re-analizar"}</Button>
             <Button variant="secondary" disabled={!!busy} onClick={() => action("bg")}><Eraser className="h-4 w-4" />{busy === "bg" ? "Procesando..." : "Quitar fondo"}</Button>
           </div>
+          {features.virtual_model && brandModels.length > 0 && (
+            <div>
+              <Label>Modelo</Label>
+              <select value={brandModelId} onChange={(e) => setBrandModelId(e.target.value)} className="h-11 w-full rounded-xl border border-stone-300 bg-white px-3 text-sm">
+                <option value="">Modelo automático</option>
+                {brandModels.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+              </select>
+            </div>
+          )}
           {(features.virtual_model || features.video_generation) && (
             <div className="grid grid-cols-2 gap-2">
               {features.virtual_model && <Button variant="secondary" disabled={!!busy || !!gen} onClick={() => generate("model")}><UserRound className="h-4 w-4" />{gen === "model" ? "Procesando imagen" : "Generar foto con modelo"}</Button>}

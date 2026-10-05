@@ -101,6 +101,7 @@ function ProductCard({ p, i, theme, onOpen }: { p: PublicProduct; i: number; the
   const [hover, setHover] = useState(false);
   const alt = imgs[1];
   const src = (hover && alt ? alt.url : imgs[0]?.url) || null;
+  const small = src && src === p.image && p.image_small ? p.image_small : null;
   return (
     <motion.article initial={{ opacity: 0, y: 24, scale: 0.97 }} whileInView={{ opacity: 1, y: 0, scale: 1 }} viewport={{ once: true, margin: "-40px" }}
       transition={{ duration: 0.5, delay: Math.min(i % 4, 3) * t.stagger }} className={`group cursor-pointer ${t.cardClass}`}
@@ -109,7 +110,7 @@ function ProductCard({ p, i, theme, onOpen }: { p: PublicProduct; i: number; the
       <div className={`relative overflow-hidden ${t.aspect} ${t.imgClass}`} style={{ background: t.cardBg }}>
         <AnimatePresence initial={false}>
           {src && (
-            <motion.img key={src} src={src} alt={p.name} loading="lazy" className="absolute inset-0 h-full w-full object-cover"
+            <motion.img key={src} src={small ?? src} srcSet={small && p.image ? `${small} 480w, ${p.image} 1200w` : undefined} sizes="(max-width: 640px) 50vw, 33vw" alt={p.name} loading="lazy" className="absolute inset-0 h-full w-full object-cover"
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }} whileHover={{ scale: t.hover }} />
           )}
         </AnimatePresence>

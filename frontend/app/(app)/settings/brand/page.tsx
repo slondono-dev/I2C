@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ImagePlus } from "lucide-react";
+import { ArrowLeft, ImagePlus, Trash2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { useToast } from "@/components/ui/toast";
@@ -12,7 +12,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { THEMES } from "@/components/catalog/themes";
 import { THEME_LABEL, errMsg } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { ThemeName } from "@/lib/types";
+import { Dialog } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/input";
+import type { BrandModel, ThemeName } from "@/lib/types";
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
@@ -25,6 +27,76 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
         <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder="#4f46e5" maxLength={7} className={cn(value && !HEX.test(value) && "border-red-400")} />
       </div>
     </div>
+  );
+}
+
+const SEL = "h-12 w-full rounded-xl border border-stone-300 bg-white px-3 text-sm";
+const GENDERS = [["mujer", "Mujer"], ["hombre", "Hombre"], ["unisex", "Unisex"]];
+const AGES = ["18-25", "25-35", "35-50"];
+const STYLES = ["studio", "editorial", "street", "premium"];
+
+function BrandModels({ brandId }: { brandId: string }) {
+  const toast = useToast();
+  const [enabled, setEnabled] = useState<boolean | null>(null);
+  const [models, setModels] = useState<BrandModel[]>([]);
+  const [f, setF] = useState({ name: "", gender: "unisex", age_range: "25-35", style: "studio", prompt: "" });
+  const [saving, setSaving] = useState(false);
+  const [del, setDel] = useState<BrandModel | null>(null);
+
+  useEffect(() => { api.health().then((h) => setEnabled(!!h?.features.virtual_model)); }, []);
+  useEffect(() => {
+    if (!enabled) return;
+    api.brandModels(brandId).then(setModels).catch((e) => toast(errMsg(e), "error"));
+  }, [brandId, enabled, toast]);
+
+  async function create() {
+    if (!f.name.trim()) { toast("Escribe un nombre para el modelo", "error"); return; }
+    setSaving(true);
+    try {
+      const m = await api.createBrandModel(brandId, { name: f.name.trim(), gender: f.gender, age_range: f.age_range, style: f.style, prompt_template: f.prompt.trim() || undefined });
+      setModels((s) => [...s, m]); setF({ ...f, name: "", prompt: "" });
+      toast("Modelo creado");
+    } catch (e) { toast(errMsg(e), "error"); } finally { setSaving(false); }
+  }
+  async function remove() {
+    if (!del) return;
+    try { await api.deleteBrandModel(brandId, del.id); setModels((s) => s.filter((x) => x.id !== del.id)); toast("Modelo eliminado"); }
+    catch (e) { toast(errMsg(e), "error"); } finally { setDel(null); }
+  }
+
+  if (enabled === null) return null;
+  if (!enabled) return <p className="text-center text-sm text-stone-500">Función premium no activada</p>;
+  return (
+    <Card className="space-y-4">
+      <div className="text-xs font-medium uppercase tracking-wide text-stone-500">Modelos de marca</div>
+      {models.length === 0 ? <p className="text-sm text-stone-500">Aún no tienes modelos.</p> : (
+        <ul className="space-y-2">
+          {models.map((m) => (
+            <li key={m.id} className="flex items-center justify-between gap-2 rounded-xl bg-stone-50 px-3 py-2">
+              <div className="min-w-0"><div className="truncate font-semibold">{m.name}</div>
+                <div className="text-xs text-stone-500">{[m.gender, m.age_range, m.style].filter(Boolean).join(" · ")}</div></div>
+              <button aria-label={`Eliminar ${m.name}`} onClick={() => setDel(m)} className="rounded-xl p-2 text-red-600 hover:bg-stone-100"><Trash2 className="h-5 w-5" /></button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="space-y-3 border-t border-stone-100 pt-3">
+        <div><Label>Nombre</Label><Input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="Ej: Camila" /></div>
+        <div className="grid grid-cols-3 gap-2">
+          <div><Label>Género</Label><select className={SEL} value={f.gender} onChange={(e) => setF({ ...f, gender: e.target.value })}>{GENDERS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
+          <div><Label>Edad</Label><select className={SEL} value={f.age_range} onChange={(e) => setF({ ...f, age_range: e.target.value })}>{AGES.map((a) => <option key={a}>{a}</option>)}</select></div>
+          <div><Label>Estilo</Label><select className={SEL} value={f.style} onChange={(e) => setF({ ...f, style: e.target.value })}>{STYLES.map((a) => <option key={a}>{a}</option>)}</select></div>
+        </div>
+        <div><Label>Prompt personalizado (opcional)</Label>
+          <Textarea value={f.prompt} onChange={(e) => setF({ ...f, prompt: e.target.value })} />
+          <p className="mt-1 text-xs text-stone-500">Puedes usar los marcadores {"{style}"} y {"{gender}"}.</p></div>
+        <Button className="w-full" disabled={saving} onClick={create}>{saving ? "Creando..." : "Crear modelo"}</Button>
+      </div>
+      <Dialog open={!!del} onClose={() => setDel(null)} title="¿Eliminar modelo?">
+        <p className="mb-4 text-sm text-stone-600">Se eliminará &quot;{del?.name}&quot;. Esta acción no se puede deshacer.</p>
+        <div className="flex gap-2"><Button variant="outline" className="flex-1" onClick={() => setDel(null)}>Cancelar</Button><Button variant="danger" className="flex-1" onClick={remove}>Eliminar</Button></div>
+      </Dialog>
+    </Card>
   );
 }
 
@@ -104,6 +176,7 @@ export default function BrandSettings() {
             </div>
           </Card>
           <Button size="lg" className="w-full" disabled={saving} onClick={save}>{saving ? "Guardando..." : "Guardar cambios"}</Button>
+          <BrandModels brandId={brand.id} />
         </>
       )}
     </div>
