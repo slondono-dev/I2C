@@ -14,13 +14,12 @@
 - Health checks programados (APScheduler) y persistencia de salud de providers.
 - SSE/WebSocket para progreso de jobs (hoy polling).
 - Celery + Redis cuando el volumen lo exija.
-- Compresión/responsive images y CDN para `/media`.
+- CDN para `/media` (ya hay thumbnails derivados y `image_small`).
 - Métricas: tiempo foto→producto, producto→catálogo, costo IA por producto/usuario.
-- Reprocesamiento masivo y comparación A/B de providers sobre el mismo input.
+- Reprocesamiento masivo.
 
 ## V2
-- `BrandModel` reutilizable (modelo de marca persistente) sobre `VIRTUAL_MODEL` (ya existe el job, el
-  mock, `fidelity_score` y el adapter OpenAI-compatible de imágenes).
+- Imágenes de referencia subidas para `BrandModel` y providers de try-on dedicados.
 - `PRODUCT_ENHANCEMENT` (iluminación, encuadre) sin alterar forma/color/estampado.
 - Subdominios por marca (`marca.app.com`).
 - Analítica de consultas por WhatsApp.

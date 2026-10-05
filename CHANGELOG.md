@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.3.0] - 2026-10-05
+
+### Added
+- `BrandModel`: modelos de marca reutilizables para virtual try-on (`/brands/{id}/models`),
+  `generate-model` acepta `brand_model_id`; plantillas de prompt con placeholders.
+- Experimentos A/B de providers (`POST /admin/ai/experiments`) y `run_with_provider` en el orquestador.
+- Thumbnails derivados de la imagen del catálogo (con procedencia) y `image_small` en el catálogo
+  público para grids responsivos.
+- Migración Alembic 0003.
+
+### Fixed
+- Los jobs conservan sus opciones en `result` al completarse.
+
 ## [0.2.0] - 2026-10-05
 
 ### Added
