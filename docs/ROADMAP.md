@@ -12,11 +12,9 @@
 ## V1
 - Integrar 9Router real (`NINEROUTER_ENABLED=true`) y validar modelos gratuitos.
 - Health checks programados (APScheduler) y persistencia de salud de providers.
-- SSE/WebSocket para progreso de jobs (hoy polling).
 - Celery + Redis cuando el volumen lo exija.
 - CDN para `/media` (ya hay thumbnails derivados y `image_small`).
 - Métricas: tiempo foto→producto, producto→catálogo, costo IA por producto/usuario.
-- Reprocesamiento masivo.
 
 ## V2
 - Imágenes de referencia subidas para `BrandModel` y providers de try-on dedicados.

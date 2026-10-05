@@ -9,6 +9,7 @@
 - Thumbnails derivados de la imagen del catálogo (con procedencia) y `image_small` en el catálogo
   público para grids responsivos.
 - Migración Alembic 0003.
+- SSE de progreso de jobs (`GET /jobs/{id}/stream`) y reprocesamiento masivo (`POST /products/bulk/reprocess`).
 
 ### Fixed
 - Los jobs conservan sus opciones en `result` al completarse.

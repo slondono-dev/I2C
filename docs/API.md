@@ -30,10 +30,12 @@ Modelos de marca (try-on reutilizable): `GET/POST /brands/{id}/models`, `DELETE 
 | POST | /products/{id}/generate-model | `{brand_model_id?, style?, model?}` → 202 job (503 si `VIRTUAL_MODEL_ENABLED=false`) |
 | POST | /products/{id}/generate-video | 202 job (503 si `VIDEO_ENABLED=false`) |
 | POST | /products/bulk/publish | `{product_ids}` → `{published, errors}` |
+| POST | /products/bulk/reprocess | `{product_ids, task: analyze\|clean\|full, overwrite}` → 202 jobs |
 | POST | /products/bulk/update | `{items:[{id,name,price,stock,sku}]}` |
 
 ## Jobs
 `GET /jobs?product_id=`, `GET /jobs/{id}` → `status` pending/running/completed/failed, `progress`, `result`, `error`.
+`GET /jobs/{id}/stream` → Server-Sent Events (`event: job` con el estado, `event: end` al terminar).
 
 ## Público (sin auth)
 `GET /public/catalogs/{slug}` (solo catálogos publicados y productos publicados, con `whatsapp_url`,

@@ -22,6 +22,7 @@ from app.models import Product, ProductStatus, StockMode, User
 from app.schemas.ai import JobOut
 from app.schemas.product import (
     BulkPublish,
+    BulkReprocess,
     BulkUpdate,
     ProductCreate,
     ProductOut,
@@ -246,6 +247,23 @@ def bulk_publish(
     products = [p for pid in data.product_ids if (p := svc.get_product(db, user.id, pid))]
     published, errors = svc.publish_products(db, products)
     return {"published": [p.id for p in published], "errors": errors}
+
+
+@router.post("/bulk/reprocess", response_model=list[JobOut], status_code=status.HTTP_202_ACCEPTED)
+def bulk_reprocess(
+    data: BulkReprocess,
+    bg: BackgroundTasks,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Re-run analysis / background removal on many products without re-uploading."""
+    jobs = []
+    for pid in data.product_ids:
+        product = svc.get_product(db, user.id, pid)
+        if product is None or not product.assets:
+            continue
+        jobs.append(_start_job(db, bg, user, product, data.task, data.overwrite))
+    return jobs
 
 
 @router.post("/bulk/update", response_model=list[ProductOut])

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -102,6 +103,12 @@ class ProductOut(ORMModel):
 
 class BulkPublish(BaseModel):
     product_ids: list[str] = Field(min_length=1)
+
+
+class BulkReprocess(BaseModel):
+    product_ids: list[str] = Field(min_length=1, max_length=100)
+    task: Literal["analyze", "clean", "full"] = "full"
+    overwrite: bool = False
 
 
 class BulkUpdateItem(BaseModel):
