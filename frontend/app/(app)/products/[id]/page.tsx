@@ -46,6 +46,8 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
     setF({ name: prod.name ?? "", description: prod.description ?? "", price: prod.price ? String(parseFloat(prod.price)) : "", stock: String(prod.stock ?? 0),
       ...Object.fromEntries(FIELDS.map(([k]) => [k, (prod[k] as string | null) ?? ""])) });
     setVariants(prod.variants.map((v) => ({ ...v })));
+    const vm = (prod.ai_metadata as { virtual_model?: { fidelity_score?: number; review_required?: boolean } } | null)?.virtual_model;
+    if (vm) setReview({ required: !!vm.review_required, score: vm.fidelity_score ?? null });
     setView(prod.primary_asset_type === "clean" && prod.assets.some((a) => a.type === "clean") ? "clean" : "original");
   }, []);
   useEffect(() => { api.product(id).then(load).catch((e) => setErr(errMsg(e))); }, [id, load]);
