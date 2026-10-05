@@ -20,7 +20,7 @@ from app.ai import AITask, get_orchestrator
 from app.core.db import SessionLocal
 from app.core.logging import get_logger
 from app.models import AIJob, AssetType, JobStatus, Product, ProductStatus
-from app.services.products import add_asset
+from app.services.products import add_asset, refresh_thumbnail
 from app.services.storage import get_storage
 
 log = get_logger("ai.pipeline")
@@ -169,6 +169,7 @@ async def run_clean(db: Session, job: AIJob, product: Product) -> dict:
             source="ai",
             provider=res.provider,
         )
+        refresh_thumbnail(db, product, res.data["image"], AssetType.CLEAN)
     return {"success": res.success, "provider": res.provider, "error": res.error}
 
 
@@ -285,7 +286,7 @@ async def execute_job(job_id: str, overwrite: bool = False) -> None:
         if product.status in (ProductStatus.DRAFT,):
             product.status = ProductStatus.PROCESSING
             db.commit()
-        result: dict[str, Any] = {}
+        result: dict[str, Any] = dict(job.result or {})
         try:
             if job.task in ("analyze", "full"):
                 result["analyze"] = await run_analyze(db, job, product, overwrite)

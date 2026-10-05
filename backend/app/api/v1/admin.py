@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -70,3 +71,49 @@ async def run_health_check(_: User = Depends(get_admin_user)):
 @router.get("/metrics")
 def metrics(hours: int = 24 * 7, _: User = Depends(get_admin_user), db: Session = Depends(get_db)):
     return product_metrics(db, hours)
+
+
+class ExperimentIn(BaseModel):
+    task: str
+    providers: list[str] = Field(min_length=1, max_length=6)
+    payload: dict = Field(default_factory=dict)
+    product_id: str | None = None
+
+
+@router.post("/experiments")
+async def run_experiment(
+    data: ExperimentIn, _: User = Depends(get_admin_user), db: Session = Depends(get_db)
+):
+    """Run the same input through several providers and compare outputs (not for production use)."""
+    from app.ai.types import AITask
+    from app.models import AssetType, Product
+    from app.services.storage import get_storage
+
+    try:
+        task = AITask(data.task)
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "unknown task") from exc
+    payload = dict(data.payload)
+    if data.product_id:
+        product = db.get(Product, data.product_id)
+        if product is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "product not found")
+        for t in (AssetType.CLEAN, AssetType.ORIGINAL):
+            asset = next((a for a in product.assets if a.type == t), None)
+            if asset:
+                payload["image"] = get_storage().read(asset.storage_key)
+                payload["image_mime"] = (
+                    "image/png" if asset.storage_key.endswith(".png") else "image/jpeg"
+                )
+                break
+    orch = get_orchestrator()
+    results = []
+    for name in data.providers:
+        res = await orch.run_with_provider(task, payload, name)
+        out = res.to_dict()
+        if isinstance(out["data"].get("image"), bytes):
+            out["data"] = {**out["data"], "image": f"<{len(out['data']['image'])} bytes>"}
+        if isinstance(out["data"].get("video"), bytes):
+            out["data"] = {**out["data"], "video": f"<{len(out['data']['video'])} bytes>"}
+        results.append(out)
+    return {"task": task.value, "results": results}

@@ -51,6 +51,15 @@ def serialize_product(product: Product, phone: str | None) -> dict:
     if not sizes and product.size:
         sizes = [s.strip() for s in product.size.replace("/", ",").split(",") if s.strip()]
     images = {a.type.value: a.url for a in product.assets if a.type.value != "video"}
+    thumb = next((a for a in product.assets if a.type.value == "thumbnail"), None)
+    display_type = next(
+        (t for t in (product.primary_asset_type.value, "clean", "original") if t in images), None
+    )
+    image_small = (
+        thumb.url
+        if thumb is not None and (thumb.metadata_ or {}).get("from") == display_type
+        else product.display_image
+    )
     video = next((a.url for a in product.assets if a.type.value == "video"), None)
     return {
         "id": product.id,
@@ -65,6 +74,7 @@ def serialize_product(product: Product, phone: str | None) -> dict:
         "color": product.color,
         "sizes": sizes,
         "image": product.display_image,
+        "image_small": image_small,
         "images": images,
         "video": video,
         "whatsapp_url": whatsapp_url(phone, product),

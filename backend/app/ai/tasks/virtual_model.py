@@ -19,12 +19,19 @@ class VirtualModelTask(TaskHandler):
     def build_request(self, payload: dict[str, Any]) -> AIRequest:
         style = payload.get("style") or "studio"
         model = payload.get("model") or {}
-        prompt = (
+        prompt = model.get("prompt_template") or (
             f"Fashion {style} photo of a {model.get('gender', 'female')} model "
             f"({model.get('age_range', '25-35')}) wearing the garment from the reference image. "
             "Keep the garment's exact shape, color, pattern, seams, pockets and buttons. "
             "Neutral background, soft lighting."
         )
+        if "{" in prompt:
+            fields = {k: v or "" for k, v in model.items() if isinstance(v, str)}
+            fields["style"] = style
+            try:
+                prompt = prompt.format(**fields)
+            except (KeyError, IndexError, ValueError):
+                pass  # keep template verbatim if it has unknown placeholders
         return AIRequest(
             task=self.task,
             capability=self.capability,

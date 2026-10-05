@@ -30,6 +30,7 @@ class PublicProduct(BaseModel):
     color: str | None
     sizes: list[str]
     image: str | None
+    image_small: str | None = None
     images: dict[str, str]
     video: str | None = None
     whatsapp_url: str | None

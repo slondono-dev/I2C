@@ -27,6 +27,27 @@ class BrandUpdate(BaseModel):
     catalog_style: str | None = None
 
 
+class BrandModelIn(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    gender: str | None = None
+    age_range: str | None = None
+    style: str | None = None
+    reference_images: list[str] | None = None
+    prompt_template: str | None = None
+
+
+class BrandModelOut(ORMModel):
+    id: str
+    brand_id: str
+    name: str
+    gender: str | None
+    age_range: str | None
+    style: str | None
+    reference_images: list[str] | None
+    prompt_template: str | None
+    created_at: datetime
+
+
 class BrandOut(ORMModel):
     id: str
     name: str

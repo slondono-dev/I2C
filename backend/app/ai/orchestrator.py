@@ -261,6 +261,46 @@ class AIOrchestrator:
         except Exception as exc:  # never let metrics break requests
             log.error("ai.usage_sink_failed", error=str(exc))
 
+    async def run_with_provider(
+        self, task: AITask | str, payload: dict[str, Any], provider_name: str
+    ) -> AIResult:
+        """Bypass routing (A/B experiments). Health and usage are still recorded."""
+        task = AITask(task)
+        handler = self.handlers[task]
+        provider = self.providers.get(provider_name)
+        if provider is None or not provider.supports(handler.capability):
+            return AIResult(False, task.value, provider_name, None, 0.0, {}, error="unsupported")
+        request = handler.build_request(payload)
+        started = time.perf_counter()
+        try:
+            raw = await provider.execute(request)
+            data = handler.parse(raw, payload)
+        except Exception as exc:
+            latency = int((time.perf_counter() - started) * 1000)
+            self.health.get(provider.name).record_failure(exc)
+            return AIResult(
+                False, task.value, provider.name, None, 0.0, {}, latency_ms=latency, error=str(exc)
+            )
+        latency = int((time.perf_counter() - started) * 1000)
+        self.health.get(provider.name).record_success(latency)
+        self._record(
+            None,
+            None,
+            task,
+            provider,
+            raw.model,
+            raw.input_units,
+            raw.output_units,
+            raw.estimated_cost,
+            latency,
+            True,
+            False,
+            None,
+        )
+        return AIResult(
+            True, task.value, provider.name, raw.model, raw.estimated_cost, data, latency_ms=latency
+        )
+
     # ---------- introspection ----------
     def provider_status(self) -> list[dict[str, Any]]:
         out = []

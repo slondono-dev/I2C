@@ -22,3 +22,4 @@ class Brand(Base, IdMixin, TimestampMixin):
 
     owner = relationship("User", back_populates="brands")
     catalogs = relationship("Catalog", back_populates="brand", cascade="all, delete-orphan")
+    models = relationship("BrandModel", back_populates="brand", cascade="all, delete-orphan")

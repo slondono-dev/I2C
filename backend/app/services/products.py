@@ -173,9 +173,24 @@ def attach_original(db: Session, product: Product, image: ValidatedImage) -> Pro
         image.content_type,
         metadata={"width": image.width, "height": image.height},
     )
-    thumb = make_thumbnail(image.data)
-    add_asset(db, product, AssetType.THUMBNAIL, thumb, "jpg", "image/jpeg", source="derived")
+    refresh_thumbnail(db, product, image.data, AssetType.ORIGINAL)
     return asset
+
+
+def refresh_thumbnail(db: Session, product: Product, data: bytes, derived_from: AssetType) -> None:
+    """Small catalog image (grid cards). Records which asset it was derived from."""
+    thumb = make_thumbnail(data)
+    ext, mime = ("png", "image/png") if thumb[:8] == b"\x89PNG\r\n\x1a\n" else ("jpg", "image/jpeg")
+    add_asset(
+        db,
+        product,
+        AssetType.THUMBNAIL,
+        thumb,
+        ext,
+        mime,
+        source="derived",
+        metadata={"from": derived_from.value},
+    )
 
 
 def apply_price(value: Decimal | float | None) -> Decimal | None:

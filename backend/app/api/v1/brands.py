@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.core.db import get_db
-from app.models import User
-from app.schemas.brand import BrandCreate, BrandOut, BrandUpdate
+from app.models import BrandModel, User
+from app.schemas.brand import BrandCreate, BrandModelIn, BrandModelOut, BrandOut, BrandUpdate
 from app.services import brands as svc
 from app.services.images.validation import InvalidImage, validate_image
 from app.services.storage import get_storage
@@ -70,3 +71,43 @@ async def upload_logo(
     db.commit()
     db.refresh(brand)
     return brand
+
+
+@router.get("/{brand_id}/models", response_model=list[BrandModelOut])
+def list_models(
+    brand_id: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
+    brand = _get_or_404(db, user, brand_id)
+    return list(db.execute(select(BrandModel).where(BrandModel.brand_id == brand.id)).scalars())
+
+
+@router.post(
+    "/{brand_id}/models", response_model=BrandModelOut, status_code=status.HTTP_201_CREATED
+)
+def create_model(
+    brand_id: str,
+    data: BrandModelIn,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    brand = _get_or_404(db, user, brand_id)
+    m = BrandModel(brand_id=brand.id, **data.model_dump())
+    db.add(m)
+    db.commit()
+    db.refresh(m)
+    return m
+
+
+@router.delete("/{brand_id}/models/{model_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_model(
+    brand_id: str,
+    model_id: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    brand = _get_or_404(db, user, brand_id)
+    m = db.get(BrandModel, model_id)
+    if m is None or m.brand_id != brand.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "model not found")
+    db.delete(m)
+    db.commit()

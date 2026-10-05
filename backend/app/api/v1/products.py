@@ -190,6 +190,7 @@ def remove_background(
 class GenerateModelIn(BaseModel):
     style: str | None = None
     model: dict | None = None
+    brand_model_id: str | None = None
 
 
 @router.post(
@@ -209,6 +210,15 @@ def generate_model(
     if existing:
         return existing
     options = data.model_dump(exclude_none=True) if data else {}
+    if data and data.brand_model_id:
+        from app.models import BrandModel
+
+        bm = db.get(BrandModel, data.brand_model_id)
+        if bm is None or bm.brand_id != product.catalog.brand_id:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "brand model not found")
+        options["model"] = {**bm.as_options(), **(options.get("model") or {})}
+        options.setdefault("style", bm.style)
+        options.pop("brand_model_id", None)
     job = pipeline.create_job(db, user.id, product.id, "model", options or None)
     bg.add_task(pipeline.execute_job, job.id)
     return job
