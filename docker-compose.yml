@@ -1,0 +1,58 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: i2c
+      POSTGRES_PASSWORD: i2c
+      POSTGRES_DB: i2c
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U i2c -d i2c"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "5432:5432"
+
+  # Optional: only needed when switching background jobs to Celery.
+  redis:
+    image: redis:7-alpine
+    profiles: ["queue"]
+    ports:
+      - "6379:6379"
+
+  backend:
+    build:
+      context: ./backend
+      args:
+        INSTALL_LOCAL_AI: ${INSTALL_LOCAL_AI:-0}
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg2://i2c:i2c@postgres:5432/i2c
+      MEDIA_ROOT: /app/media
+      CORS_ORIGINS: ${PUBLIC_BASE_URL:-http://localhost:3000}
+    volumes:
+      - media_data:/app/media
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      API_INTERNAL_URL: http://backend:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  media_data:

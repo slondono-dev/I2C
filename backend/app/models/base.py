@@ -21,3 +21,15 @@ class TimestampMixin:
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=utcnow, onupdate=utcnow, nullable=False
     )
+
+
+def str_enum(enum_cls, length: int = 20):
+    """Store enum *values* (not names) as short strings, portable across DBs."""
+    from sqlalchemy import Enum
+
+    return Enum(
+        enum_cls,
+        native_enum=False,
+        length=length,
+        values_callable=lambda e: [m.value for m in e],
+    )

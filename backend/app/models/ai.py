@@ -3,11 +3,11 @@ from __future__ import annotations
 import enum
 from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, DateTime, Enum, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base
-from app.models.base import IdMixin, TimestampMixin
+from app.models.base import IdMixin, TimestampMixin, str_enum
 
 
 class JobStatus(str, enum.Enum):
@@ -26,7 +26,7 @@ class AIJob(Base, IdMixin, TimestampMixin):
     task: Mapped[str] = mapped_column(String(60), nullable=False)
     provider: Mapped[str | None] = mapped_column(String(60))
     status: Mapped[JobStatus] = mapped_column(
-        Enum(JobStatus, native_enum=False, length=20), default=JobStatus.PENDING, index=True
+        str_enum(JobStatus), default=JobStatus.PENDING, index=True
     )
     progress: Mapped[int] = mapped_column(Integer, default=0)
     result: Mapped[dict | None] = mapped_column(JSON)

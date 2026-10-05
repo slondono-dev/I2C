@@ -1,0 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body { background: #fafaf9; color: #1c1917; -webkit-tap-highlight-color: transparent; }
+body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+.pb-safe { padding-bottom: calc(env(safe-area-inset-bottom) + 0.5rem); }

@@ -3,11 +3,11 @@ from __future__ import annotations
 import enum
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, ForeignKey, String, Text
+from sqlalchemy import DateTime, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base
-from app.models.base import IdMixin, TimestampMixin
+from app.models.base import IdMixin, TimestampMixin, str_enum
 
 
 class CatalogStatus(str, enum.Enum):
@@ -32,10 +32,10 @@ class Catalog(Base, IdMixin, TimestampMixin):
     slug: Mapped[str] = mapped_column(String(140), unique=True, index=True, nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
     status: Mapped[CatalogStatus] = mapped_column(
-        Enum(CatalogStatus, native_enum=False, length=20), default=CatalogStatus.DRAFT
+        str_enum(CatalogStatus), default=CatalogStatus.DRAFT
     )
     theme: Mapped[CatalogTheme] = mapped_column(
-        Enum(CatalogTheme, native_enum=False, length=20), default=CatalogTheme.MINIMAL
+        str_enum(CatalogTheme), default=CatalogTheme.MINIMAL
     )
     published_at: Mapped[datetime | None] = mapped_column(DateTime)
 

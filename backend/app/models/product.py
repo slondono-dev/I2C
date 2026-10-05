@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import enum
 
-from sqlalchemy import JSON, Enum, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import JSON, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base
-from app.models.base import IdMixin, TimestampMixin
+from app.models.base import IdMixin, TimestampMixin, str_enum
 
 
 class ProductStatus(str, enum.Enum):
@@ -42,9 +42,7 @@ class Product(Base, IdMixin, TimestampMixin):
     price: Mapped[float | None] = mapped_column(Numeric(12, 2))
     currency: Mapped[str] = mapped_column(String(8), default="COP")
     stock: Mapped[int | None] = mapped_column(Integer)
-    stock_mode: Mapped[StockMode] = mapped_column(
-        Enum(StockMode, native_enum=False, length=20), default=StockMode.TRACKED
-    )
+    stock_mode: Mapped[StockMode] = mapped_column(str_enum(StockMode), default=StockMode.TRACKED)
     category: Mapped[str | None] = mapped_column(String(80))
     subcategory: Mapped[str | None] = mapped_column(String(80))
     color: Mapped[str | None] = mapped_column(String(60))
@@ -53,10 +51,10 @@ class Product(Base, IdMixin, TimestampMixin):
     material: Mapped[str | None] = mapped_column(String(80))
     fit: Mapped[str | None] = mapped_column(String(40))
     status: Mapped[ProductStatus] = mapped_column(
-        Enum(ProductStatus, native_enum=False, length=20), default=ProductStatus.DRAFT
+        str_enum(ProductStatus), default=ProductStatus.DRAFT
     )
     primary_asset_type: Mapped[AssetType] = mapped_column(
-        Enum(AssetType, native_enum=False, length=20), default=AssetType.CLEAN
+        str_enum(AssetType), default=AssetType.CLEAN
     )
     ai_metadata: Mapped[dict | None] = mapped_column(JSON)
 
@@ -89,7 +87,7 @@ class ProductAsset(Base, IdMixin, TimestampMixin):
     __tablename__ = "product_assets"
 
     product_id: Mapped[str] = mapped_column(ForeignKey("products.id"), index=True, nullable=False)
-    type: Mapped[AssetType] = mapped_column(Enum(AssetType, native_enum=False, length=20))
+    type: Mapped[AssetType] = mapped_column(str_enum(AssetType))
     source: Mapped[str] = mapped_column(String(40), default="upload")  # upload | ai | derived
     provider: Mapped[str | None] = mapped_column(String(60))
     storage_key: Mapped[str] = mapped_column(String(500), nullable=False)
