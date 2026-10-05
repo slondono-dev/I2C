@@ -140,6 +140,7 @@ def test_usage_sink_records_each_attempt():
     assert [r["provider"] for r in records] == ["a", "b"]
     assert records[0]["success"] is False and records[1]["success"] is True
     assert records[1]["fallback"] is True and records[1]["user_id"] == "u1"
+    assert records[1]["product_id"] is None
 
 
 @pytest.mark.parametrize(

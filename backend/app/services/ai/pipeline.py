@@ -28,8 +28,16 @@ log = get_logger("ai.pipeline")
 _ATTR_FIELDS = ("category", "subcategory", "color", "gender", "fit", "material")
 
 
-def create_job(db: Session, user_id: str, product_id: str | None, task: str) -> AIJob:
-    job = AIJob(user_id=user_id, product_id=product_id, task=task, status=JobStatus.PENDING)
+def create_job(
+    db: Session, user_id: str, product_id: str | None, task: str, options: dict | None = None
+) -> AIJob:
+    job = AIJob(
+        user_id=user_id,
+        product_id=product_id,
+        task=task,
+        status=JobStatus.PENDING,
+        result={"options": options} if options else None,
+    )
     db.add(job)
     db.commit()
     db.refresh(job)
@@ -82,7 +90,7 @@ async def run_analyze(db: Session, job: AIJob, product: Product, overwrite: bool
 
     _set(db, job, progress=10)
     rec = await ai.run(
-        AITask.PRODUCT_RECOGNITION, {"image": image, "image_mime": mime}, job.user_id
+        AITask.PRODUCT_RECOGNITION, {"image": image, "image_mime": mime}, job.user_id, product.id
     )
     attrs: dict[str, Any] = {}
     if rec.success:
@@ -106,7 +114,9 @@ async def run_analyze(db: Session, job: AIJob, product: Product, overwrite: bool
     attributes.update({k: v for k, v in attrs.items() if k in ("sleeve", "neck", "pattern") and v})
 
     if overwrite or not product.name:
-        name = await ai.run(AITask.PRODUCT_NAME, {"attributes": attributes}, job.user_id)
+        name = await ai.run(
+            AITask.PRODUCT_NAME, {"attributes": attributes}, job.user_id, product.id
+        )
         if name.success:
             product.name = name.data["name"]
             db.commit()
@@ -118,6 +128,7 @@ async def run_analyze(db: Session, job: AIJob, product: Product, overwrite: bool
             AITask.PRODUCT_DESCRIPTION,
             {"attributes": attributes, "name": product.name},
             job.user_id,
+            product.id,
         )
         if desc.success:
             product.description = desc.data["description"]
@@ -142,7 +153,9 @@ async def run_clean(db: Session, job: AIJob, product: Product) -> dict:
         raise RuntimeError("product has no original image")
     image, mime = original
     _set(db, job, progress=20)
-    res = await ai.run(AITask.BACKGROUND_REMOVAL, {"image": image, "image_mime": mime}, job.user_id)
+    res = await ai.run(
+        AITask.BACKGROUND_REMOVAL, {"image": image, "image_mime": mime}, job.user_id, product.id
+    )
     if res.success:
         out_mime = res.data.get("image_mime", "image/png")
         ext = "png" if out_mime == "image/png" else "jpg"
@@ -153,6 +166,103 @@ async def run_clean(db: Session, job: AIJob, product: Product) -> dict:
             res.data["image"],
             ext,
             out_mime,
+            source="ai",
+            provider=res.provider,
+        )
+    return {"success": res.success, "provider": res.provider, "error": res.error}
+
+
+def _source_for_generation(product: Product) -> tuple[bytes, str] | None:
+    """Prefer the clean image (transparent) for generation, else original."""
+    storage = get_storage()
+    for t in (AssetType.CLEAN, AssetType.ORIGINAL):
+        for a in product.assets:
+            if a.type == t:
+                mime = "image/png" if a.storage_key.endswith(".png") else "image/jpeg"
+                return storage.read(a.storage_key), mime
+    return None
+
+
+async def run_model(db: Session, job: AIJob, product: Product, options: dict | None = None) -> dict:
+    from app.services.images.fidelity import fidelity_score, needs_review
+
+    ai = get_orchestrator()
+    src = _source_for_generation(product)
+    if src is None:
+        raise RuntimeError("product has no image")
+    image, mime = src
+    options = options or {}
+    _set(db, job, progress=20)
+    res = await ai.run(
+        AITask.VIRTUAL_MODEL,
+        {
+            "image": image,
+            "image_mime": mime,
+            "style": options.get("style"),
+            "model": options.get("model"),
+        },
+        job.user_id,
+        product.id,
+    )
+    out: dict[str, Any] = {"success": res.success, "provider": res.provider, "error": res.error}
+    if res.success:
+        score = fidelity_score(image, res.data["image"])
+        out["fidelity_score"] = score
+        out["review_required"] = needs_review(score)
+        ext = "png" if res.data["image_mime"] == "image/png" else "jpg"
+        add_asset(
+            db,
+            product,
+            AssetType.MODEL,
+            res.data["image"],
+            ext,
+            res.data["image_mime"],
+            source="ai",
+            provider=res.provider,
+            metadata={"fidelity_score": score, "review_required": needs_review(score)},
+        )
+        meta = dict(product.ai_metadata or {})
+        meta["virtual_model"] = {
+            "provider": res.provider,
+            "fidelity_score": score,
+            "review_required": needs_review(score),
+            "at": _now().isoformat(),
+        }
+        product.ai_metadata = meta
+        db.commit()
+    return out
+
+
+async def run_video(db: Session, job: AIJob, product: Product) -> dict:
+    ai = get_orchestrator()
+    storage = get_storage()
+    src = None
+    for t in (AssetType.MODEL, AssetType.CLEAN, AssetType.ORIGINAL):
+        for a in product.assets:
+            if a.type == t:
+                src = (
+                    storage.read(a.storage_key),
+                    "image/png" if a.storage_key.endswith(".png") else "image/jpeg",
+                )
+                break
+        if src:
+            break
+    if src is None:
+        raise RuntimeError("product has no image")
+    _set(db, job, progress=20)
+    res = await ai.run(
+        AITask.PRODUCT_VIDEO, {"image": src[0], "image_mime": src[1]}, job.user_id, product.id
+    )
+    if res.success:
+        mime = res.data["video_mime"]
+        ext = {"video/mp4": "mp4", "video/webm": "webm", "image/gif": "gif"}.get(mime, "bin")
+        add_asset(
+            db,
+            product,
+            AssetType.VIDEO,
+            res.data["video"],
+            ext,
+            mime,
             source="ai",
             provider=res.provider,
         )
@@ -181,15 +291,22 @@ async def execute_job(job_id: str, overwrite: bool = False) -> None:
                 result["analyze"] = await run_analyze(db, job, product, overwrite)
             if job.task in ("clean", "full"):
                 result["clean"] = await run_clean(db, job, product)
-            if job.task not in ("analyze", "clean", "full"):
+            if job.task == "model":
+                result["model"] = await run_model(
+                    db, job, product, (job.result or {}).get("options")
+                )
+            if job.task == "video":
+                result["video"] = await run_video(db, job, product)
+            if job.task not in ("analyze", "clean", "full", "model", "video"):
                 raise RuntimeError(f"unknown job task {job.task}")
             used: list[str] = [
                 r["provider"]
                 for r in (result.get("analyze") or {}).values()
                 if isinstance(r, dict) and r.get("provider")
             ]
-            if result.get("clean", {}).get("provider"):
-                used.append(result["clean"]["provider"])
+            for key in ("clean", "model", "video"):
+                if result.get(key, {}).get("provider"):
+                    used.append(result[key]["provider"])
             _set(
                 db,
                 job,

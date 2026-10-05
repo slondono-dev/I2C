@@ -40,8 +40,8 @@ DEFAULT_ROUTING: dict[AITask, list[str]] = {
     ],
     AITask.BACKGROUND_REMOVAL: ["local", "mock"],
     AITask.PRODUCT_ENHANCEMENT: [],
-    AITask.VIRTUAL_MODEL: [],
-    AITask.PRODUCT_VIDEO: [],
+    AITask.VIRTUAL_MODEL: ["mock"],  # real adapters added here when available
+    AITask.PRODUCT_VIDEO: ["mock"],
 }
 
 WEIGHTS = {"cost": 0.40, "quality": 0.30, "availability": 0.20, "latency": 0.10}

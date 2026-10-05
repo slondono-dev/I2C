@@ -31,6 +31,7 @@ class PublicProduct(BaseModel):
     sizes: list[str]
     image: str | None
     images: dict[str, str]
+    video: str | None = None
     whatsapp_url: str | None
 
 

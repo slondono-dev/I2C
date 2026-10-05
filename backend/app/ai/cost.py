@@ -14,6 +14,7 @@ def record_usage(
     db: Session,
     *,
     user_id: str | None,
+    product_id: str | None,
     task: str,
     provider: str,
     model: str | None,
@@ -28,6 +29,7 @@ def record_usage(
     db.add(
         AIUsage(
             user_id=user_id,
+            product_id=product_id,
             task=task,
             provider=provider,
             model=model,

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import enum
+from datetime import datetime
 
-from sqlalchemy import JSON, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import JSON, DateTime, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base
@@ -57,6 +58,7 @@ class Product(Base, IdMixin, TimestampMixin):
         str_enum(AssetType), default=AssetType.CLEAN
     )
     ai_metadata: Mapped[dict | None] = mapped_column(JSON)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime)
 
     catalog = relationship("Catalog", back_populates="products")
     assets = relationship(

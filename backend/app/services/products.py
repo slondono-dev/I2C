@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from sqlalchemy import select
@@ -22,6 +23,10 @@ from app.services.storage import get_storage
 
 class ProductError(Exception):
     pass
+
+
+def _now() -> datetime:
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 def list_products(
@@ -67,6 +72,8 @@ def update_product(db: Session, product: Product, data: ProductUpdate) -> Produc
     variants = changes.pop("variants", None)
     if changes.get("status") == ProductStatus.PUBLISHED:
         _ensure_publishable(product, changes)
+        if product.published_at is None:
+            product.published_at = _now()
     for k, v in changes.items():
         setattr(product, k, v)
     if variants is not None:
@@ -98,6 +105,7 @@ def publish_products(db: Session, products: list[Product]) -> tuple[list[Product
             errors.append({"id": p.id, "error": str(exc)})
             continue
         p.status = ProductStatus.PUBLISHED
+        p.published_at = p.published_at or _now()
         published.append(p)
     db.commit()
     return published, errors

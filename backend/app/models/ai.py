@@ -40,6 +40,7 @@ class AIUsage(Base, IdMixin):
     __tablename__ = "ai_usage"
 
     user_id: Mapped[str | None] = mapped_column(String(32), index=True)
+    product_id: Mapped[str | None] = mapped_column(String(32), index=True)
     task: Mapped[str] = mapped_column(String(60), index=True)
     provider: Mapped[str] = mapped_column(String(60), index=True)
     model: Mapped[str | None] = mapped_column(String(120))

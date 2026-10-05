@@ -33,7 +33,7 @@ class AIOrchestrator:
         allow_mocks: bool = True,
         routing: dict[AITask, list[str]] | None = None,
         usage_sink: UsageSink | None = None,
-        feature_flags: dict[str, bool] | None = None,
+        feature_flags: dict[str, bool] | Callable[[], dict[str, bool]] | None = None,
         max_retries: int = 1,
     ):
         self.providers: dict[str, AIProvider] = {p.name: p for p in providers}
@@ -41,7 +41,7 @@ class AIOrchestrator:
         self.router = TaskRouter(self.providers, self.health, routing, allow_mocks)
         self.handlers: dict[AITask, TaskHandler] = dict(TASK_HANDLERS)
         self.usage_sink = usage_sink
-        self.feature_flags = feature_flags or {}
+        self._feature_flags = feature_flags or {}
         self.max_retries = max_retries
 
     # ---------- configuration ----------
@@ -58,11 +58,18 @@ class AIOrchestrator:
             AITask.PRODUCT_VIDEO: "video_generation",
         }
         flag = flag_by_task.get(task)
-        return self.feature_flags.get(flag, True) if flag else True
+        if not flag:
+            return True
+        flags = self._feature_flags() if callable(self._feature_flags) else self._feature_flags
+        return flags.get(flag, True)
 
     # ---------- execution ----------
     async def run(
-        self, task: AITask | str, payload: dict[str, Any], user_id: str | None = None
+        self,
+        task: AITask | str,
+        payload: dict[str, Any],
+        user_id: str | None = None,
+        product_id: str | None = None,
     ) -> AIResult:
         task = AITask(task)
         started = time.perf_counter()
@@ -92,6 +99,7 @@ class AIOrchestrator:
                 last_error = str(exc)
                 self._record(
                     user_id,
+                    product_id,
                     task,
                     provider,
                     None,
@@ -114,6 +122,7 @@ class AIOrchestrator:
                 last_error = str(exc) or exc.__class__.__name__
                 self._record(
                     user_id,
+                    product_id,
                     task,
                     provider,
                     None,
@@ -136,6 +145,7 @@ class AIOrchestrator:
                 last_error = f"unexpected: {exc.__class__.__name__}"
                 self._record(
                     user_id,
+                    product_id,
                     task,
                     provider,
                     None,
@@ -157,6 +167,7 @@ class AIOrchestrator:
             health.record_success(latency)
             self._record(
                 user_id,
+                product_id,
                 task,
                 provider,
                 raw.model,
@@ -214,7 +225,19 @@ class AIOrchestrator:
                 await asyncio.sleep(0.2 * attempt)
 
     def _record(
-        self, user_id, task, provider, model, in_u, out_u, cost, latency, ok, fallback, error
+        self,
+        user_id,
+        product_id,
+        task,
+        provider,
+        model,
+        in_u,
+        out_u,
+        cost,
+        latency,
+        ok,
+        fallback,
+        error,
     ):
         if self.usage_sink is None:
             return
@@ -222,6 +245,7 @@ class AIOrchestrator:
             self.usage_sink(
                 {
                     "user_id": user_id,
+                    "product_id": product_id,
                     "task": task.value,
                     "provider": provider.name,
                     "model": model,

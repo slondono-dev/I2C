@@ -12,6 +12,7 @@ from fastapi import (
     UploadFile,
     status,
 )
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
@@ -186,18 +187,46 @@ def remove_background(
     return _start_job(db, bg, user, product, "clean")
 
 
-@router.post("/{product_id}/generate-model", status_code=status.HTTP_501_NOT_IMPLEMENTED)
-def generate_model(product_id: str, user: User = Depends(get_current_user)):
+class GenerateModelIn(BaseModel):
+    style: str | None = None
+    model: dict | None = None
+
+
+@router.post(
+    "/{product_id}/generate-model", response_model=JobOut, status_code=status.HTTP_202_ACCEPTED
+)
+def generate_model(
+    product_id: str,
+    bg: BackgroundTasks,
+    data: GenerateModelIn | None = None,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     if not get_settings().virtual_model_enabled:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "virtual model is disabled")
-    raise HTTPException(status.HTTP_501_NOT_IMPLEMENTED, "virtual model provider not configured")
+    product = _get_or_404(db, user, product_id)
+    existing = pipeline.find_active_job(db, product.id, "model")
+    if existing:
+        return existing
+    options = data.model_dump(exclude_none=True) if data else {}
+    job = pipeline.create_job(db, user.id, product.id, "model", options or None)
+    bg.add_task(pipeline.execute_job, job.id)
+    return job
 
 
-@router.post("/{product_id}/generate-video", status_code=status.HTTP_501_NOT_IMPLEMENTED)
-def generate_video(product_id: str, user: User = Depends(get_current_user)):
+@router.post(
+    "/{product_id}/generate-video", response_model=JobOut, status_code=status.HTTP_202_ACCEPTED
+)
+def generate_video(
+    product_id: str,
+    bg: BackgroundTasks,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     if not get_settings().video_enabled:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "video generation is disabled")
-    raise HTTPException(status.HTTP_501_NOT_IMPLEMENTED, "video provider not configured")
+    product = _get_or_404(db, user, product_id)
+    return _start_job(db, bg, user, product, "video")
 
 
 @router.post("/bulk/publish")

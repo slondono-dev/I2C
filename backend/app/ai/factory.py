@@ -68,7 +68,7 @@ def get_orchestrator() -> AIOrchestrator:
         providers=build_providers(s),
         allow_mocks=s.mocks_allowed,
         usage_sink=_db_usage_sink,
-        feature_flags=s.feature_flags(),
+        feature_flags=lambda: get_settings().feature_flags(),
     )
     return orch
 

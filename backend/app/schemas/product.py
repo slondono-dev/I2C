@@ -95,6 +95,7 @@ class ProductOut(ORMModel):
     display_image: str | None
     assets: list[ProductAssetOut]
     variants: list[ProductVariantOut]
+    published_at: datetime | None
     created_at: datetime
     updated_at: datetime
 

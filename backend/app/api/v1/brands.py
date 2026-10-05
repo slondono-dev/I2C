@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
@@ -6,6 +6,8 @@ from app.core.db import get_db
 from app.models import User
 from app.schemas.brand import BrandCreate, BrandOut, BrandUpdate
 from app.services import brands as svc
+from app.services.images.validation import InvalidImage, validate_image
+from app.services.storage import get_storage
 
 router = APIRouter(prefix="/brands", tags=["brands"])
 
@@ -49,3 +51,22 @@ def delete_brand(
     brand_id: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
     svc.delete_brand(db, _get_or_404(db, user, brand_id))
+
+
+@router.post("/{brand_id}/logo", response_model=BrandOut)
+async def upload_logo(
+    brand_id: str,
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    brand = _get_or_404(db, user, brand_id)
+    try:
+        image = validate_image(await file.read(), max_side=512)
+    except InvalidImage as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
+    key = f"brands/{brand.id}/logo.{image.extension}"
+    brand.logo = get_storage().save(key, image.data, image.content_type)
+    db.commit()
+    db.refresh(brand)
+    return brand
