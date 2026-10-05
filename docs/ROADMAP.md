@@ -19,7 +19,8 @@
 - Reprocesamiento masivo y comparación A/B de providers sobre el mismo input.
 
 ## V2
-- `VIRTUAL_MODEL` con `BrandModel` reutilizable y `fidelity_score` (< 0.70 → REVIEW_REQUIRED).
+- `BrandModel` reutilizable (modelo de marca persistente) sobre `VIRTUAL_MODEL` (ya existe el job, el
+  mock, `fidelity_score` y el adapter OpenAI-compatible de imágenes).
 - `PRODUCT_ENHANCEMENT` (iluminación, encuadre) sin alterar forma/color/estampado.
 - Subdominios por marca (`marca.app.com`).
 - Analítica de consultas por WhatsApp.

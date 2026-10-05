@@ -68,6 +68,12 @@ class Settings(BaseSettings):
     openai_compatible_vision_model: str = ""
     openai_compatible_text_model: str = ""
 
+    openai_image_base_url: str = ""
+    openai_image_api_key: str = ""
+    openai_image_model: str = ""
+    openai_image_cost_per_image: float = 0.0
+    ai_image_timeout_seconds: float = 120.0
+
     anthropic_api_key: str = ""
     anthropic_model: str = "claude-haiku-4-5-20251001"
 

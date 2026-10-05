@@ -9,6 +9,7 @@ intercambiables que implementan `AIProvider` (`text`, `vision`, `image_edit`, `i
 | `ninerouter` | text, vision | `NINEROUTER_API_KEY` | Sí | Preparado, `NINEROUTER_ENABLED=false` | API OpenAI-compatible esperada; extiende `OpenAICompatibleProvider` |
 | `openrouter` | text, vision | `OPENROUTER_API_KEY` | Modelos `:free` | Listo | Modelos por defecto gratuitos; límites de rate del free tier |
 | `openai_compatible` | text, vision | `OPENAI_COMPATIBLE_API_KEY` | Depende | Listo | vLLM, Ollama, LM Studio, Groq, etc. |
+| `openai_image` | image_generation (`/images/edits`, `/images/generations`) | `OPENAI_IMAGE_API_KEY` | Depende | Listo | Virtual model / enhancement vía cualquier gateway OpenAI-compatible (9Router incluido) |
 | `anthropic` | text, vision | `ANTHROPIC_API_KEY` | No | Listo | Uso en desarrollo/pruebas; costo estimado por tokens |
 | `mock` | text, vision, image_edit | — | — | Solo `APP_MODE!=production` | Respuestas deterministas para tests/CI/frontend |
 
@@ -20,7 +21,9 @@ intercambiables que implementan `AIProvider` (`text`, `vision`, `image_edit`, `i
 | product_name | ninerouter → openrouter → openai_compatible → anthropic → local → mock |
 | product_description | ninerouter → openrouter → openai_compatible → anthropic → local → mock |
 | background_removal | local → mock |
-| product_enhancement / virtual_model / product_video | sin providers (feature flags off) |
+| product_enhancement | openai_image |
+| virtual_model | openai_image → mock (flag `VIRTUAL_MODEL_ENABLED`, off por defecto) |
+| product_video | mock (flag `VIDEO_ENABLED`, off por defecto; sin adapter real aún) |
 
 El orden final lo decide el scoring + `priority`/`enabled` guardados en `ai_provider_configs`
 (editable en `/admin/ai`). Un provider no configurado (sin API key) simplemente no participa.
@@ -46,8 +49,15 @@ Objetivo: < US$0.01 por producto; ideal ≈ 0.
 
 Ningún archivo fuera de `app/ai/` debe cambiar.
 
+## Fidelidad
+
+Tras generar una imagen MODEL se calcula `fidelity_score` (histograma HSV del producto vs. generado,
+local y determinista). Si es `< 0.70` el asset queda marcado `review_required` y el panel muestra
+"Revisar fidelidad". Reemplazable por un modelo de similitud sin tocar el pipeline
+(`services/images/fidelity.py`).
+
 ## Próximos adapters (no bloquean el MVP)
 
-- `VirtualTryOnProvider` (IDM-VTON / OOTDiffusion locales o API con free tier).
+- Try-on dedicado (IDM-VTON / OOTDiffusion locales o API con free tier) como provider de `virtual_model`.
 - `LocalImageGenerationProvider` (FLUX / SDXL) deshabilitado por defecto.
 - `VideoGenerationProvider` con `VIDEO_ENABLED=false`.

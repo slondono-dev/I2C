@@ -11,6 +11,7 @@ from app.ai.providers import (
     LocalProvider,
     MockAIProvider,
     NineRouterProvider,
+    OpenAICompatibleImageProvider,
     OpenAICompatibleProvider,
     OpenRouterProvider,
 )
@@ -43,6 +44,13 @@ def build_providers(s: Settings) -> list[AIProvider]:
             timeout=timeout,
         ),
         AnthropicProvider(api_key=s.anthropic_api_key, model=s.anthropic_model, timeout=timeout),
+        OpenAICompatibleImageProvider(
+            base_url=s.openai_image_base_url,
+            api_key=s.openai_image_api_key,
+            model=s.openai_image_model,
+            timeout=s.ai_image_timeout_seconds,
+            cost_per_image=s.openai_image_cost_per_image,
+        ),
         LocalProvider(),
     ]
     if s.mocks_allowed:

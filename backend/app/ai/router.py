@@ -39,8 +39,8 @@ DEFAULT_ROUTING: dict[AITask, list[str]] = {
         "mock",
     ],
     AITask.BACKGROUND_REMOVAL: ["local", "mock"],
-    AITask.PRODUCT_ENHANCEMENT: [],
-    AITask.VIRTUAL_MODEL: ["mock"],  # real adapters added here when available
+    AITask.PRODUCT_ENHANCEMENT: ["openai_image"],
+    AITask.VIRTUAL_MODEL: ["openai_image", "mock"],
     AITask.PRODUCT_VIDEO: ["mock"],
 }
 

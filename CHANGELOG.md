@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.2.0] - 2026-10-05
+
+### Added
+- Jobs opcionales `model` (virtual try-on) y `video`, detrás de `VIRTUAL_MODEL_ENABLED` / `VIDEO_ENABLED`,
+  con mock para desarrollo y `fidelity_score` (< 0.70 → `review_required`).
+- `OpenAICompatibleImageProvider` (`/images/edits`) para virtual model / enhancement.
+- Métricas de producto (`/admin/ai/metrics`): foto→producto, producto→catálogo, costo por producto
+  y usuario, % gratuito, fallback y error; `product_id` en `ai_usage`; `published_at` en productos.
+- Health check manual (`POST /admin/ai/health-check`) y monitor periódico.
+- Logo de marca (`POST /brands/{id}/logo`); `video` en catálogo público.
+- Frontend: ajustes de marca, múltiples catálogos, generación de modelo/video en detalle,
+  métricas en `/admin/ai`, iconos PNG para PWA.
+- Feature flags evaluados en caliente; migración Alembic 0002.
+
 ## [0.1.0] - 2026-10-05
 
 ### Added
