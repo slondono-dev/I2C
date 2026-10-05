@@ -26,7 +26,8 @@ Datos demo (opcional): `docker compose exec backend python scripts_seed.py`
 → usuario `demo@i2c.local` / `demo1234` (admin) y catálogo público en `/c/demo-studio`.
 
 Para activar la eliminación de fondo local (open source, `rembg`), construye con
-`INSTALL_LOCAL_AI=1 docker compose up --build`.
+`INSTALL_LOCAL_AI=1 docker compose up --build` (necesita ~2 GB de RAM; se puede apagar con
+`LOCAL_REMBG_ENABLED=false`). Sin rembg, el pipeline sigue funcionando y publica la imagen original.
 
 ## Desarrollo sin Docker
 
@@ -49,6 +50,8 @@ NEXT_PUBLIC_API_URL=http://localhost:8000 npm run dev
 ```
 
 ## Quality gates
+
+CI (GitHub Actions) ejecuta ruff, mypy, pytest, `next lint` y `next build` en cada push.
 
 ```bash
 make test   # pytest
