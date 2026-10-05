@@ -42,3 +42,12 @@ def test_admin_endpoints_require_admin(client, auth):
 def test_health(client):
     r = client.get("/health")
     assert r.status_code == 200 and r.json()["status"] == "ok"
+
+
+def test_health_check_endpoint(client, auth):
+    _make_admin("juan@example.com")
+    r = client.post("/api/v1/admin/ai/health-check", headers=auth)
+    assert r.status_code == 200
+    data = r.json()
+    assert data["mock"] is True and data["local"] is True
+    assert data["ninerouter"] is False  # disabled → not configured

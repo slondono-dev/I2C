@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.ai import get_orchestrator
 from app.ai.cost import usage_summary
 from app.ai.factory import load_overrides_from_db
+from app.ai.health_monitor import check_all
 from app.api.deps import get_admin_user
 from app.core.config import get_settings
 from app.core.db import get_db
@@ -58,3 +59,8 @@ def usage(hours: int = 24, _: User = Depends(get_admin_user), db: Session = Depe
 @router.get("/features")
 def features(_: User = Depends(get_admin_user)):
     return get_settings().feature_flags()
+
+
+@router.post("/health-check")
+async def run_health_check(_: User = Depends(get_admin_user)):
+    return await check_all(get_orchestrator())

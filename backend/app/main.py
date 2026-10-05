@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -12,6 +13,7 @@ from slowapi.middleware import SlowAPIMiddleware
 
 from app.ai import get_orchestrator
 from app.ai.factory import load_overrides_from_db
+from app.ai.health_monitor import run_forever
 from app.api.v1 import api_router
 from app.core.config import get_settings
 from app.core.logging import configure_logging, get_logger
@@ -32,7 +34,14 @@ async def lifespan(app: FastAPI):
     except Exception as exc:  # DB may not be migrated yet on first boot
         log.warning("ai.overrides_not_loaded", error=str(exc))
     log.info("app.start", mode=s.app_mode, features=s.feature_flags())
+    monitor = None
+    if s.app_mode != "test":
+        monitor = asyncio.create_task(
+            run_forever(get_orchestrator(), s.health_check_interval_seconds)
+        )
     yield
+    if monitor:
+        monitor.cancel()
 
 
 def create_app() -> FastAPI:

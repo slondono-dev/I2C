@@ -15,6 +15,7 @@ from PIL import Image
 
 from app.ai.providers.base import AIProvider
 from app.ai.types import AIRawResponse, AIRequest, AITask, Capability, ProviderUnavailable
+from app.core.config import get_settings
 
 try:  # optional heavy dependency
     from rembg import remove as _rembg_remove  # type: ignore
@@ -82,6 +83,8 @@ class LocalProvider(AIProvider):
             raise NotImplementedError
         if not REMBG_AVAILABLE or request.image is None:
             raise ProviderUnavailable("rembg not installed")
+        if not get_settings().local_rembg_enabled:
+            raise ProviderUnavailable("local rembg disabled")
         loop = asyncio.get_running_loop()
         out = await loop.run_in_executor(None, _rembg_remove, request.image)
         return AIRawResponse(image=bytes(out), image_mime="image/png", model="rembg-u2net")

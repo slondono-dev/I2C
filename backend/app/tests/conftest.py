@@ -18,6 +18,7 @@ os.environ.update(
         "MOCK_PROVIDERS_ENABLED": "true",
         "ANTHROPIC_API_KEY": "",
         "OPENROUTER_API_KEY": "",
+        "LOCAL_REMBG_ENABLED": "false",
     }
 )
 

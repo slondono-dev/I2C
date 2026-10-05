@@ -51,6 +51,8 @@ class Settings(BaseSettings):
 
     # AI providers
     ai_request_timeout_seconds: float = 45.0
+    health_check_interval_seconds: float = 300.0
+    local_rembg_enabled: bool = True
     ninerouter_base_url: str = ""
     ninerouter_api_key: str = ""
     ninerouter_vision_model: str = ""
